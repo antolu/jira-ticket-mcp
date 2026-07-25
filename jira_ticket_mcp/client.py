@@ -5,10 +5,11 @@ import types
 from typing import Self
 
 import httpx
+import pydantic
 
 from jira_ticket_mcp.config import Settings
 from jira_ticket_mcp.errors import JiraAPIError
-from jira_ticket_mcp.models import HttpMethod, JiraModel, Myself
+from jira_ticket_mcp.models import HttpMethod, Issue, JiraModel, Myself, SearchPage
 
 _TIMEOUT_SECONDS = 30.0
 
@@ -80,12 +81,13 @@ class JiraClient:
         path: str,
         *,
         body: JiraModel | None = None,
+        json_body: dict[str, pydantic.JsonValue] | None = None,
         params: collections.abc.Mapping[str, str] | None = None,
     ) -> httpx.Response:
         payload = (
             body.model_dump(by_alias=True, exclude_none=True)
             if body is not None
-            else None
+            else json_body
         )
         response = await self._http.request(method, path, json=payload, params=params)
         try:
@@ -97,6 +99,34 @@ class JiraClient:
     async def get_myself(self) -> Myself:
         response = await self._request(HttpMethod.GET, "/rest/api/3/myself")
         return Myself.model_validate(response.json())
+
+    async def get_issue(self, key: str, *, fields: list[str] | None = None) -> Issue:
+        params = {"fields": ",".join(fields)} if fields else None
+        response = await self._request(
+            HttpMethod.GET, f"/rest/api/3/issue/{key}", params=params
+        )
+        return Issue.model_validate(response.json())
+
+    async def search_jql(
+        self,
+        jql: str,
+        *,
+        max_results: int = 50,
+        next_page_token: str | None = None,
+        fields: list[str] | None = None,
+    ) -> SearchPage:
+        payload: dict[str, pydantic.JsonValue] = {
+            "jql": jql,
+            "maxResults": max_results,
+        }
+        if next_page_token is not None:
+            payload["nextPageToken"] = next_page_token
+        if fields is not None:
+            payload["fields"] = list(fields)
+        response = await self._request(
+            HttpMethod.POST, "/rest/api/3/search/jql", json_body=payload
+        )
+        return SearchPage.model_validate(response.json())
 
     async def aclose(self) -> None:
         await self._http.aclose()

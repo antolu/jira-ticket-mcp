@@ -1,0 +1,57 @@
+{
+  "id": "10042",
+  "key": "OPS-42",
+  "self": "https://example.atlassian.net/rest/api/3/issue/10042",
+  "fields": {
+    "summary": "Rotate the staging API token",
+    "description": {
+      "type": "doc",
+      "version": 1,
+      "content": [
+        {
+          "type": "paragraph",
+          "content": [
+            {
+              "type": "text",
+              "text": "The staging token expires on Friday."
+            }
+          ]
+        }
+      ]
+    },
+    "labels": [
+      "security",
+      "staging"
+    ],
+    "status": {
+      "id": "3",
+      "name": "In Progress"
+    },
+    "assignee": {
+      "accountId": "557058:abc-123",
+      "displayName": "Mia Okafor"
+    },
+    "priority": {
+      "id": "2",
+      "name": "High"
+    },
+    "parent": {
+      "key": "OPS-1"
+    },
+    "issuetype": {
+      "id": "10001",
+      "name": "Task"
+    },
+    "customfield_10014": "OPS-1",
+    "customfield_10020": [
+      {
+        "id": 7,
+        "name": "Sprint 7"
+      }
+    ],
+    "watches": {
+      "watchCount": 3,
+      "isWatching": false
+    }
+  }
+}
