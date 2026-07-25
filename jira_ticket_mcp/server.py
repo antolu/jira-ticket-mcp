@@ -172,7 +172,13 @@ def build_server(
         parent_key: str | None = None,
         labels: list[str] | None = None,
     ) -> str:
-        """Edit any subset of an issue's fields, including its type and parent."""
+        """Edit any subset of an issue's fields, including its type and parent.
+
+        Only the fields you pass are changed. Passing description replaces the
+        whole field: images and other attachments embedded in the existing
+        description are not recoverable from its markdown and will be lost.
+        Leave description unset unless you intend to rewrite it.
+        """
         fields = build_fields(
             issue_type=issue_type,
             summary=summary,

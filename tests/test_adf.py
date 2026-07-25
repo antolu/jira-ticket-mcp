@@ -81,13 +81,33 @@ def test_exotic_nodes_keep_their_text(load_fixture: LoadFixture) -> None:
     assert "TaskItemText" in markdown
 
 
-def test_media_nodes_are_dropped_but_not_silently(load_fixture: LoadFixture) -> None:
+def test_media_nodes_become_visible_placeholders(load_fixture: LoadFixture) -> None:
     document = AdfDocument.model_validate_json(load_fixture("adf_exotic.json"))
-    with warnings.catch_warnings(record=True) as caught:
-        warnings.simplefilter("always")
-        markdown = document.to_markdown()
-    assert "MediaAltText" not in markdown
-    assert any("mediaSingle" in str(item.message) for item in caught)
+    markdown = document.to_markdown()
+    assert "[attachment: MediaAltText]" in markdown
+
+
+def test_media_only_description_is_not_empty() -> None:
+    document = AdfDocument.model_validate({
+        "type": "doc",
+        "version": 1,
+        "content": [
+            {
+                "type": "mediaSingle",
+                "content": [{"type": "media", "attrs": {"id": "abc", "type": "file"}}],
+            }
+        ],
+    })
+    assert document.to_markdown().strip() == "[attachment: abc]"
+
+
+def test_media_substitution_does_not_mutate_the_document(
+    load_fixture: LoadFixture,
+) -> None:
+    raw = json.loads(load_fixture("adf_exotic.json"))
+    document = AdfDocument.model_validate(raw)
+    document.to_markdown()
+    assert document.model_dump() == raw
 
 
 def test_document_serializes_back_to_the_raw_adf(load_fixture: LoadFixture) -> None:
