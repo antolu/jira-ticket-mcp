@@ -18,11 +18,18 @@ from jira_ticket_mcp.models import (
     IssueSummary,
     SearchResult,
     ToolName,
+    Transition,
 )
 from jira_ticket_mcp.server import UnknownToolError, build_server, resolve_tools
 
 LoadFixture = collections.abc.Callable[[str], str]
 FAILED_ITEM_INDEX = 2
+
+
+class TransitionListResult(pydantic.BaseModel):
+    """FastMCP wraps a bare list return under a ``result`` key."""
+
+    result: list[Transition]
 
 
 class CommentListResult(pydantic.BaseModel):
@@ -239,6 +246,28 @@ async def test_remove_issue_deletes(jira_client: JiraClient, base_url: str) -> N
 
 
 @respx.mock
+async def test_list_transitions_returns_available_targets(
+    jira_client: JiraClient, base_url: str, load_fixture: LoadFixture
+) -> None:
+    respx.get(f"{base_url}/rest/api/3/issue/OPS-42/transitions").mock(
+        return_value=_json_response(load_fixture("transitions_200.json"))
+    )
+    server = build_server(jira_client, resolve_tools(None))
+
+    payload = await _structured(
+        server, "list_transitions", {"key": "OPS-42"}, TransitionListResult
+    )
+
+    assert [(item.id, item.name) for item in payload.result] == [
+        ("11", "To Do"),
+        ("21", "In Progress"),
+        ("31", "Done"),
+    ]
+    assert payload.result[2].to is not None
+    assert payload.result[2].to.name == "Done"
+
+
+@respx.mock
 async def test_list_comments_returns_markdown_bodies(
     jira_client: JiraClient, base_url: str, load_fixture: LoadFixture
 ) -> None:
@@ -260,6 +289,20 @@ async def test_list_comments_returns_markdown_bodies(
 
 
 @respx.mock
+async def test_remove_comment_deletes_by_id(
+    jira_client: JiraClient, base_url: str
+) -> None:
+    route = respx.delete(f"{base_url}/rest/api/3/issue/OPS-42/comment/10500").mock(
+        return_value=httpx.Response(204)
+    )
+    server = build_server(jira_client, resolve_tools(None))
+
+    await server.call_tool("remove_comment", {"key": "OPS-42", "comment_id": "10500"})
+
+    assert route.called
+
+
+@respx.mock
 async def test_get_issue_returns_description_as_markdown(
     jira_client: JiraClient, base_url: str, load_fixture: LoadFixture
 ) -> None:
@@ -274,3 +317,102 @@ async def test_get_issue_returns_description_as_markdown(
 
     assert isinstance(fields, dict)
     assert fields["description"] == "The staging token expires on Friday."
+
+
+@respx.mock
+async def test_create_epic_sends_epic_issue_type(
+    jira_client: JiraClient, base_url: str, load_fixture: LoadFixture
+) -> None:
+    route = respx.post(f"{base_url}/rest/api/3/issue").mock(
+        return_value=_json_response(load_fixture("issue_get_200.json"), 201)
+    )
+    server = build_server(jira_client, resolve_tools(None))
+
+    await server.call_tool(
+        "create_issue",
+        {"project": "OPS", "issue_type": "Epic", "summary": "Token hygiene"},
+    )
+
+    body = json.loads(route.calls.last.request.content)
+    assert body["fields"]["issuetype"] == {"name": "Epic"}
+    assert "parent" not in body["fields"]
+
+
+@respx.mock
+async def test_create_issue_attaches_to_epic_through_parent(
+    jira_client: JiraClient, base_url: str, load_fixture: LoadFixture
+) -> None:
+    route = respx.post(f"{base_url}/rest/api/3/issue").mock(
+        return_value=_json_response(load_fixture("issue_get_200.json"), 201)
+    )
+    server = build_server(jira_client, resolve_tools(None))
+
+    await server.call_tool(
+        "create_issue",
+        {
+            "project": "OPS",
+            "issue_type": "Story",
+            "summary": "Rotate staging token",
+            "parent_key": "OPS-1",
+        },
+    )
+
+    body = json.loads(route.calls.last.request.content)
+    assert body["fields"]["parent"] == {"key": "OPS-1"}
+    assert body["fields"]["issuetype"] == {"name": "Story"}
+
+
+@respx.mock
+async def test_create_subtask_sends_subtask_type_and_parent(
+    jira_client: JiraClient, base_url: str, load_fixture: LoadFixture
+) -> None:
+    route = respx.post(f"{base_url}/rest/api/3/issue").mock(
+        return_value=_json_response(load_fixture("issue_get_200.json"), 201)
+    )
+    server = build_server(jira_client, resolve_tools(None))
+
+    await server.call_tool(
+        "create_issue",
+        {
+            "project": "OPS",
+            "issue_type": "Sub-task",
+            "summary": "Update the runbook",
+            "parent_key": "OPS-42",
+        },
+    )
+
+    body = json.loads(route.calls.last.request.content)
+    assert body["fields"]["issuetype"] == {"name": "Sub-task"}
+    assert body["fields"]["parent"] == {"key": "OPS-42"}
+
+
+@respx.mock
+async def test_edit_issue_reparents_without_touching_other_fields(
+    jira_client: JiraClient, base_url: str
+) -> None:
+    route = respx.put(f"{base_url}/rest/api/3/issue/OPS-42").mock(
+        return_value=httpx.Response(204)
+    )
+    server = build_server(jira_client, resolve_tools(None))
+
+    await server.call_tool("edit_issue", {"key": "OPS-42", "parent_key": "OPS-7"})
+
+    body = json.loads(route.calls.last.request.content)
+    assert body == {"fields": {"parent": {"key": "OPS-7"}}}
+
+
+@respx.mock
+async def test_edit_issue_parent_rejection_names_project_style(
+    jira_client: JiraClient, base_url: str
+) -> None:
+    respx.put(f"{base_url}/rest/api/3/issue/OPS-42").mock(
+        return_value=_json_response(
+            json.dumps({"errors": {"parent": "Field 'parent' cannot be set."}}), 400
+        )
+    )
+    server = build_server(jira_client, resolve_tools(None))
+
+    with pytest.raises(
+        mcp.server.fastmcp.exceptions.ToolError, match="company-managed"
+    ):
+        await server.call_tool("edit_issue", {"key": "OPS-42", "parent_key": "OPS-7"})
