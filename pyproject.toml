@@ -144,10 +144,6 @@ ignore = [
   "lowercase-imported-as-non-lowercase",
   "non-lowercase-variable-in-function",
   "logging-f-string",
-  # MCP tools take flat optional parameters by design — the generic edit_issue tool is
-  # the point, and folding them into a nested model would make the derived schema worse.
-  "too-many-arguments",
-  "too-many-positional-arguments",
 ]
 
 [tool.ruff.lint.mccabe]

@@ -264,7 +264,7 @@ class JiraClient:
         await self._http.aclose()
 
 
-def build_fields(
+def build_fields(  # ruff: ignore[too-many-arguments]
     *,
     project: str | None = None,
     issue_type: IssueType | str | None = None,

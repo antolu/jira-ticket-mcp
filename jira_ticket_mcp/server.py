@@ -109,10 +109,11 @@ def build_server(
         return (await client.get_transitions(key)).transitions
 
     @register(ToolName.CREATE_ISSUE)
-    async def create_issue(
+    async def create_issue(  # ruff: ignore[too-many-arguments]
         project: str,
         issue_type: IssueType | str,
         summary: str,
+        *,
         description: str | None = None,
         assignee_account_id: str | None = None,
         priority: str | None = None,
@@ -160,8 +161,9 @@ def build_server(
         return await client.bulk_create_issues(field_sets)
 
     @register(ToolName.EDIT_ISSUE)
-    async def edit_issue(
+    async def edit_issue(  # ruff: ignore[too-many-arguments]
         key: str,
+        *,
         summary: str | None = None,
         description: str | None = None,
         assignee_account_id: str | None = None,
