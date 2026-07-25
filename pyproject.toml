@@ -63,7 +63,7 @@ namespaces = false
 jira_ticket_mcp = ["py.typed"]
 
 [project.scripts]
-# project endpoints here
+jira-ticket-mcp = "jira_ticket_mcp.server:main"
 
 # include black configuration for easy to use with VSCode and PyCharm
 # autoformatter
@@ -136,7 +136,19 @@ select = [
   "SIM",
 ]
 fixable = ["ALL"]
-ignore = ["line-too-long", "doc-line-too-long", "single-line-implicit-string-concatenation", "redefined-loop-name", "lowercase-imported-as-non-lowercase", "non-lowercase-variable-in-function", "logging-f-string"]
+ignore = [
+  "line-too-long",
+  "doc-line-too-long",
+  "single-line-implicit-string-concatenation",
+  "redefined-loop-name",
+  "lowercase-imported-as-non-lowercase",
+  "non-lowercase-variable-in-function",
+  "logging-f-string",
+  # MCP tools take flat optional parameters by design — the generic edit_issue tool is
+  # the point, and folding them into a nested model would make the derived schema worse.
+  "too-many-arguments",
+  "too-many-positional-arguments",
+]
 
 [tool.ruff.lint.mccabe]
 max-complexity = 10

@@ -81,3 +81,79 @@ class SearchPage(JiraModel):
     issues: list[Issue] = pydantic.Field(default_factory=list)
     next_page_token: str | None = None
     is_last: bool | None = None
+
+
+class ToolName(enum.StrEnum):
+    WHOAMI = "whoami"
+    SEARCH_ISSUES = "search_issues"
+    GET_ISSUE = "get_issue"
+    LIST_TRANSITIONS = "list_transitions"
+    CREATE_ISSUE = "create_issue"
+    BATCH_CREATE_ISSUES = "batch_create_issues"
+    EDIT_ISSUE = "edit_issue"
+    REMOVE_ISSUE = "remove_issue"
+    TRANSITION_ISSUE = "transition_issue"
+    LINK_ISSUES = "link_issues"
+    ADD_COMMENT = "add_comment"
+    LIST_COMMENTS = "list_comments"
+    REMOVE_COMMENT = "remove_comment"
+
+
+class Transition(JiraModel):
+    id: str
+    name: str
+    to: NamedRef | None = None
+
+
+class TransitionList(JiraModel):
+    transitions: list[Transition] = pydantic.Field(default_factory=list)
+
+
+class Comment(JiraModel):
+    id: str
+    body: AdfDocument | None = None
+    author: UserRef | None = None
+    created: str | None = None
+
+
+class CommentPage(JiraModel):
+    comments: list[Comment] = pydantic.Field(default_factory=list)
+    total: int | None = None
+
+
+class IssueSummary(JiraModel):
+    key: str
+    summary: str | None = None
+    status: str | None = None
+    issue_type: str | None = None
+    assignee: str | None = None
+    priority: str | None = None
+
+    @classmethod
+    def from_issue(cls, issue: Issue) -> IssueSummary:
+        fields = issue.fields
+        return cls(
+            key=issue.key,
+            summary=fields.summary,
+            status=fields.status.name if fields.status else None,
+            issue_type=fields.issue_type.name if fields.issue_type else None,
+            assignee=fields.assignee.display_name if fields.assignee else None,
+            priority=fields.priority.name if fields.priority else None,
+        )
+
+
+class SearchResult(JiraModel):
+    issues: list[IssueSummary] = pydantic.Field(default_factory=list)
+    next_page_token: str | None = None
+    is_last: bool | None = None
+
+
+class BatchItemResult(JiraModel):
+    index: int
+    key: str | None = None
+    error: str | None = None
+
+
+class BatchCreateResult(JiraModel):
+    created: list[BatchItemResult] = pydantic.Field(default_factory=list)
+    failed: list[BatchItemResult] = pydantic.Field(default_factory=list)

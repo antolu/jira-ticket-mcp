@@ -1,0 +1,26 @@
+{
+  "issues": [
+    {
+      "id": "10101",
+      "key": "OPS-101",
+      "self": "https://example.atlassian.net/rest/api/3/issue/10101"
+    },
+    {
+      "id": "10102",
+      "key": "OPS-102",
+      "self": "https://example.atlassian.net/rest/api/3/issue/10102"
+    }
+  ],
+  "errors": [
+    {
+      "status": 400,
+      "elementErrors": {
+        "errorMessages": [],
+        "errors": {
+          "summary": "You must specify a summary of the issue."
+        }
+      },
+      "failedElementNumber": 2
+    }
+  ]
+}

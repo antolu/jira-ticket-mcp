@@ -16,6 +16,10 @@ class Settings(pydantic_settings.BaseSettings):
     jira_base_url: str = pydantic.Field(description="Jira Cloud base URL")
     jira_email: str = pydantic.Field(description="Jira account email")
     jira_api_token: pydantic.SecretStr = pydantic.Field(description="Jira API token")
+    tools: str | None = pydantic.Field(
+        default=None,
+        description="Comma-separated allowlist of tools to register (default: all)",
+    )
 
     @pydantic.field_validator("jira_base_url", "jira_email", mode="before")
     @classmethod
