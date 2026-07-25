@@ -14,6 +14,7 @@ import respx
 from jira_ticket_mcp.client import JiraClient
 from jira_ticket_mcp.models import (
     BatchCreateResult,
+    Comment,
     IssueSummary,
     SearchResult,
     ToolName,
@@ -22,6 +23,12 @@ from jira_ticket_mcp.server import UnknownToolError, build_server, resolve_tools
 
 LoadFixture = collections.abc.Callable[[str], str]
 FAILED_ITEM_INDEX = 2
+
+
+class CommentListResult(pydantic.BaseModel):
+    """FastMCP wraps a bare list return under a ``result`` key."""
+
+    result: list[Comment]
 
 
 ModelT = typing.TypeVar("ModelT", bound=pydantic.BaseModel)
@@ -229,3 +236,41 @@ async def test_remove_issue_deletes(jira_client: JiraClient, base_url: str) -> N
     await server.call_tool("remove_issue", {"key": "OPS-42"})
 
     assert route.called
+
+
+@respx.mock
+async def test_list_comments_returns_markdown_bodies(
+    jira_client: JiraClient, base_url: str, load_fixture: LoadFixture
+) -> None:
+    respx.get(f"{base_url}/rest/api/3/issue/OPS-42/comment").mock(
+        return_value=_json_response(load_fixture("comments_200.json"))
+    )
+    server = build_server(jira_client, resolve_tools(None))
+
+    payload = await _structured(
+        server, "list_comments", {"key": "OPS-42"}, CommentListResult
+    )
+
+    assert [comment.id for comment in payload.result] == ["10500", "10501"]
+    assert payload.result[0].body == "Rotated on staging, waiting on prod."
+    assert payload.result[1].body is not None
+    assert "**release window**" in payload.result[1].body
+    assert payload.result[0].author is not None
+    assert payload.result[0].author.display_name == "Mia Okafor"
+
+
+@respx.mock
+async def test_get_issue_returns_description_as_markdown(
+    jira_client: JiraClient, base_url: str, load_fixture: LoadFixture
+) -> None:
+    respx.get(f"{base_url}/rest/api/3/issue/OPS-42").mock(
+        return_value=_json_response(load_fixture("issue_get_200.json"))
+    )
+    server = build_server(jira_client, resolve_tools(None))
+
+    result = await server.call_tool("get_issue", {"key": "OPS-42"})
+    pair = typing.cast("tuple[object, dict[str, pydantic.JsonValue]]", result)
+    fields = pair[1]["fields"]
+
+    assert isinstance(fields, dict)
+    assert fields["description"] == "The staging token expires on Friday."

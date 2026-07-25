@@ -1,0 +1,67 @@
+{
+  "startAt": 0,
+  "maxResults": 50,
+  "total": 2,
+  "comments": [
+    {
+      "id": "10500",
+      "author": {
+        "accountId": "557058:abc-123",
+        "displayName": "Mia Okafor"
+      },
+      "body": {
+        "type": "doc",
+        "version": 1,
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "Rotated on staging, waiting on prod."
+              }
+            ]
+          }
+        ]
+      },
+      "created": "2026-07-20T09:14:02.101+0000"
+    },
+    {
+      "id": "10501",
+      "author": {
+        "accountId": "557058:def-456",
+        "displayName": "Kenji Alvarez"
+      },
+      "body": {
+        "type": "doc",
+        "version": 1,
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "Blocked until the ",
+                "marks": []
+              },
+              {
+                "type": "text",
+                "text": "release window",
+                "marks": [
+                  {
+                    "type": "strong"
+                  }
+                ]
+              },
+              {
+                "type": "text",
+                "text": " opens."
+              }
+            ]
+          }
+        ]
+      },
+      "created": "2026-07-21T16:02:44.512+0000"
+    }
+  ]
+}

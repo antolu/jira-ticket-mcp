@@ -1,11 +1,22 @@
 from __future__ import annotations
 
 import enum
+import typing
 
 import pydantic
 import pydantic.alias_generators
 
 from jira_ticket_mcp.adf import AdfDocument
+
+
+def _markdown_from_adf(value: pydantic.JsonValue) -> pydantic.JsonValue:
+    if isinstance(value, dict):
+        return AdfDocument(value).to_markdown()
+    return value
+
+
+# Text stored in Jira as ADF, exposed to callers as markdown.
+Markdown = typing.Annotated[str, pydantic.BeforeValidator(_markdown_from_adf)]
 
 
 class HttpMethod(enum.StrEnum):
@@ -61,7 +72,7 @@ class ParentRef(JiraModel):
 
 class IssueFields(JiraModel):
     summary: str | None = None
-    description: AdfDocument | None = None
+    description: Markdown | None = None
     labels: list[str] = pydantic.Field(default_factory=list)
     status: NamedRef | None = None
     assignee: UserRef | None = None
@@ -111,7 +122,7 @@ class TransitionList(JiraModel):
 
 class Comment(JiraModel):
     id: str
-    body: AdfDocument | None = None
+    body: Markdown | None = None
     author: UserRef | None = None
     created: str | None = None
 
