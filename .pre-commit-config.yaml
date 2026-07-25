@@ -34,5 +34,6 @@ repos:
     rev: "v1.20.2"
     hooks:
       - id: mypy
+        exclude: "^docs/"
         additional_dependencies:
           [httpx, mcp, pydantic, pydantic-settings, pytest, respx]

@@ -1,0 +1,162 @@
+[project]
+dependencies = [
+  "httpx>=0.28.1",
+  "marklas>=0.8.6",
+  "mcp>=1.28.1",
+  "pyadf>=0.5.2",
+  "pydantic>=2.13.4",
+  "pydantic-settings>=2.14.2",
+]
+name = "jira-ticket-mcp"
+dynamic = ["version", "readme"]
+description = "Minimal MCP server for managing Jira Cloud tickets"
+license = { file = "LICENSE.md" }
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: MIT License",
+  "Natural Language :: English",
+  "Operating System :: MacOS",
+  "Operating System :: POSIX :: Linux",
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
+  "Topic :: Software Development :: Libraries",
+]
+requires-python = ">=3.11"
+
+[[project.authors]]
+name = "Anton Lu"
+email = "anton96lu@gmail.com"
+
+[project.urls]
+homepage = "https://github.com/antolu/jira-ticket-mcp"
+documentation = "https://github.com/antolu/jira-ticket-mcp"
+repository = "https://github.com/antolu/jira-ticket-mcp"
+changelog = "https://github.com/antolu/jira-ticket-mcp/releases"
+
+[project.optional-dependencies]
+test = ["pytest", "pytest-asyncio>=1.4.0", "pytest-cov", "respx>=0.23.1"]
+doc = ["sphinx", "myst-parser", "sphinx-copybutton"]
+dev = ["mypy==1.20.2", "pre-commit==4.6.0", "ruff==0.16.0"]
+
+[build-system]
+requires = ["setuptools >= 61", "setuptools-scm[toml] ~= 10.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+# keep this for dynamic versioning
+[tool.setuptools_scm]
+write_to = "jira_ticket_mcp/_version.py"
+local_scheme = "no-local-version"
+
+[tool.setuptools.dynamic]
+readme = { file = ["README.md"], content-type = "text/markdown" }
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["jira_ticket_mcp*"]
+namespaces = false
+
+[tool.setuptools.package-data]
+jira_ticket_mcp = ["py.typed"]
+
+[project.scripts]
+# project endpoints here
+
+# include black configuration for easy to use with VSCode and PyCharm
+# autoformatter
+# For pre-commit, only ruff is used.
+
+[tool.ruff]
+exclude = [
+  ".bzr",
+  ".direnv",
+  ".eggs",
+  ".git",
+  ".hg",
+  ".mypy_cache",
+  ".nox",
+  ".pants.d",
+  ".pytype",
+  ".ruff_cache",
+  ".svn",
+  ".tox",
+  ".venv",
+  "__pypackages__",
+  "_build",
+  "buck-out",
+  "build",
+  "dist",
+  "node_modules",
+  "venv",
+  ".venv",
+  "docs/source/conf.py",
+]
+
+preview = true
+line-length = 88         # black and ruff default
+target-version = "py311"
+
+[tool.ruff.lint]
+# All rules can be found here: https://docs.astral.sh/ruff/rules/
+select = [
+  "F",   # pyflakes
+  "E",   # error  (pycodestyle)
+  "W",   # warning (pycodestyle)
+  "I",   # isort
+  "N",   # naming  (pep8)
+  "UP",  # pyupgrade
+  "PLC", # convention  (pylint)
+  "PLE", # error  (pylint)
+  "PLW", # warning  (pylint)
+  "PLR", # refactor  (pylint)
+  # "D",  # docstring (pydocstyle),  # not enabled by default
+  "PD",   # pandas
+  "TRY",  # tryceratops
+  "PERF", # perflint
+  "RUF",  # ruff
+  # v flake8 v
+  "B",
+  "C4",
+  "FBT",
+  "A",
+  "EM",
+  "ISC",
+  "FA",
+  "G",
+  "PIE",
+  "PYI",
+  "PT",
+  "Q",
+  "RSE",
+  "RET",
+  "SLF",
+  "SIM",
+]
+fixable = ["ALL"]
+ignore = ["line-too-long", "doc-line-too-long", "single-line-implicit-string-concatenation", "redefined-loop-name", "lowercase-imported-as-non-lowercase", "non-lowercase-variable-in-function", "logging-f-string"]
+
+[tool.ruff.lint.mccabe]
+max-complexity = 10
+
+[tool.ruff.format]
+preview = true
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+
+[tool.mypy]
+plugins = ["pydantic.mypy"]
+disallow_untyped_defs = true
+disallow_any_generics = true
+
+
+[[tool.mypy.overrides]]
+module = ["pyadf.*"]
+ignore_missing_imports = true
+
+# for pyright LSP
+[tool.pyright]
+reportPrivateImportUsage = "none"
