@@ -1,0 +1,65 @@
+name: Semantic Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Run semantic-release in dry-run mode"
+        required: false
+        default: "false"
+
+jobs:
+  semantic-release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+      issues: write
+      pull-requests: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Validate tag as PEP 440-compatible semver
+        if: github.event_name == 'push'
+        run: |
+          RAW_TAG="${GITHUB_REF#refs/tags/}"
+          VERSION_TAG="${RAW_TAG#v}"
+          export VERSION_TAG
+          python - <<'PY'
+          from __future__ import annotations
+
+          import os
+          import sys
+
+          from packaging.version import InvalidVersion, Version
+
+          version_tag = os.environ["VERSION_TAG"]
+          try:
+              Version(version_tag)
+          except InvalidVersion:
+              print(f"Invalid PEP 440 version tag: {version_tag}")
+              print("Use tags like v1.2.3, v1.2.3rc1, or v1.2.3.dev1")
+              sys.exit(1)
+          PY
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+
+      - name: Run semantic-release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.dry_run == 'true' }}
+        run: |
+          if [ "$DRY_RUN" = "true" ]; then
+            npx -y -p semantic-release -p @semantic-release/commit-analyzer -p @semantic-release/release-notes-generator -p @semantic-release/changelog -p @semantic-release/git -p @semantic-release/github semantic-release --dry-run
+          else
+            npx -y -p semantic-release -p @semantic-release/commit-analyzer -p @semantic-release/release-notes-generator -p @semantic-release/changelog -p @semantic-release/git -p @semantic-release/github semantic-release
+          fi

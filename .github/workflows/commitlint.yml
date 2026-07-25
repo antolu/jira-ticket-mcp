@@ -1,0 +1,22 @@
+name: Commit message lint
+
+on:
+  pull_request:
+    types: [opened, edited, reopened, synchronize]
+
+jobs:
+  commitlint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+
+      - name: Run commitlint
+        run: |
+          echo "${{ github.event.pull_request.title }}" > /tmp/pr_title.txt
+          npx -y -p @commitlint/cli@^17.0.0 commitlint --config commitlint.config.cjs --edit /tmp/pr_title.txt

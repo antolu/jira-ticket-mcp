@@ -1,0 +1,14 @@
+module.exports = {
+  ignores: [(message) => message.startsWith('chore(deps): bump')],
+  rules: {
+    'header-max-length': [2, 'always', 72],
+    'subject-empty': [2, 'never'],
+    'type-empty': [2, 'never'],
+    'type-case': [2, 'always', 'lower-case'],
+    'type-enum': [
+      2,
+      'always',
+      ['build', 'chore', 'ci', 'docs', 'feat', 'fix', 'perf', 'refactor', 'revert', 'test'],
+    ],
+  },
+}
