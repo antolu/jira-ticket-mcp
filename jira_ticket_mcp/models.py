@@ -6,17 +6,20 @@ import typing
 import pydantic
 import pydantic.alias_generators
 
+from jira_ticket_mcp import wiki
 from jira_ticket_mcp.adf import AdfDocument
 
 
-def _markdown_from_adf(value: pydantic.JsonValue) -> pydantic.JsonValue:
+def _to_markdown(value: pydantic.JsonValue) -> pydantic.JsonValue:
     if isinstance(value, dict):
         return AdfDocument(value).to_markdown()
+    if isinstance(value, str):
+        return wiki.wiki_to_markdown(value)
     return value
 
 
-# Text stored in Jira as ADF, exposed to callers as markdown.
-Markdown = typing.Annotated[str, pydantic.BeforeValidator(_markdown_from_adf)]
+# Rich text stored as ADF (v3) or wiki markup (v2), exposed to callers as markdown.
+Markdown = typing.Annotated[str, pydantic.BeforeValidator(_to_markdown)]
 
 
 class HttpMethod(enum.StrEnum):

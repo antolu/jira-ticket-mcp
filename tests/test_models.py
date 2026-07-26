@@ -37,6 +37,17 @@ def test_issue_exposes_self_from_reserved_key(load_fixture: LoadFixture) -> None
     assert issue.self_ == payload["self"]
 
 
+def test_issue_fields_converts_wiki_description_to_markdown() -> None:
+    fields = IssueFields.model_validate({
+        "summary": "s",
+        "description": "h1. Title\n\n*bold*",
+    })
+
+    assert fields.description is not None
+    assert "# Title" in fields.description
+    assert "**bold**" in fields.description
+
+
 def test_issue_fields_reads_lowercase_issuetype_key(load_fixture: LoadFixture) -> None:
     payload = json.loads(load_fixture("issue_get_200.json"))["fields"]
 
