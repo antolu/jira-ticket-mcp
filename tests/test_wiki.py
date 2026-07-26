@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import jira2markdown
 import pytest
 
 from jira_ticket_mcp import wiki
@@ -44,6 +45,41 @@ def test_table() -> None:
 
 def test_blocks_joined_with_blank_line() -> None:
     assert wiki.markdown_to_wiki("# T\n\npara") == "h1. T\n\npara"
+
+
+def test_image_uses_bang_syntax() -> None:
+    assert wiki.markdown_to_wiki("![alt](http://img)") == "!http://img!"
+
+
+def test_thematic_break() -> None:
+    assert wiki.markdown_to_wiki("---") == "----"
+
+
+def test_hard_line_break() -> None:
+    assert wiki.markdown_to_wiki("a  \nb") == "a\nb"
+
+
+def test_list_item_with_nested_block() -> None:
+    result = wiki.markdown_to_wiki("- item\n\n  ```\n  code\n  ```")
+    assert "* item" in result
+    assert "{code}\ncode\n{code}" in result
+
+
+def test_non_list_parser_output_yields_empty(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(wiki, "_PARSER", lambda _markdown: "not-a-list")
+    assert not wiki.markdown_to_wiki("# x")
+
+
+def test_wiki_to_markdown_wraps_failure(monkeypatch: pytest.MonkeyPatch) -> None:
+    def _boom(_text: str) -> str:
+        msg = "nope"
+        raise RuntimeError(msg)
+
+    monkeypatch.setattr(jira2markdown, "convert", _boom)
+    with pytest.raises(wiki.WikiConversionError):
+        wiki.wiki_to_markdown("h1. x")
 
 
 def test_wiki_to_markdown_roundtrips_core_marks() -> None:

@@ -110,6 +110,31 @@ async def test_search_issues_returns_trimmed_projection(
 
 
 @respx.mock
+async def test_create_issue_sends_wiki_description_on_v2(
+    jira_client_v2: JiraClient, dc_base_url: str
+) -> None:
+    route = respx.post(f"{dc_base_url}/rest/api/2/issue").mock(
+        return_value=_json_response(
+            '{"id": "1", "key": "DC-1", "fields": {"summary": "s"}}'
+        )
+    )
+    server = build_server(jira_client_v2, resolve_tools(None))
+
+    await server.call_tool(
+        "create_issue",
+        {
+            "project": "DC",
+            "issue_type": "Task",
+            "summary": "s",
+            "description": "**bold**",
+        },
+    )
+
+    body = json.loads(route.calls.last.request.content)
+    assert body["fields"]["description"] == "*bold*"
+
+
+@respx.mock
 async def test_edit_issue_sends_only_supplied_fields(
     jira_client: JiraClient, base_url: str
 ) -> None:

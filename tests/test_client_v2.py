@@ -106,3 +106,17 @@ async def test_search_marks_last_page(
 
     assert page.is_last is True
     assert page.next_page_token is None
+
+
+@respx.mock
+async def test_search_tolerates_non_object_body(
+    jira_client_v2: JiraClient,
+    dc_base_url: str,
+) -> None:
+    respx.post(f"{dc_base_url}/rest/api/2/search").mock(
+        return_value=_json_response("[]")
+    )
+
+    page = await jira_client_v2.search_jql("project = OPS")
+
+    assert page.issues == []
