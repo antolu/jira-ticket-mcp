@@ -26,6 +26,19 @@ from jira_ticket_mcp.models import (
 )
 
 _TIMEOUT_SECONDS = 30.0
+_CLOUD_HOST = "atlassian.net"
+
+
+def _detect_api_version(base_url: str, override: str | None) -> str:
+    if override is not None:
+        version = override.strip()
+        if version not in {"2", "3"}:
+            msg = f"jira_api_version must be '2' or '3', got {override!r}"
+            raise ValueError(msg)
+        return version
+    host = httpx.URL(base_url).host
+    is_cloud = host == _CLOUD_HOST or host.endswith(f".{_CLOUD_HOST}")
+    return "3" if is_cloud else "2"
 
 
 def _text_messages(response: httpx.Response) -> list[str]:
@@ -113,10 +126,28 @@ def _batch_error(item: pydantic.JsonValue, *, fallback: int) -> BatchItemResult:
 
 
 class JiraClient:
-    def __init__(self, base_url: str, email: str, api_token: str) -> None:
+    def __init__(
+        self,
+        base_url: str,
+        *,
+        api_token: str,
+        email: str | None = None,
+        api_version: str = "3",
+    ) -> None:
+        self._api_version = api_version
+        auth: httpx.Auth | None = None
+        headers: dict[str, str] = {}
+        if api_version == "3":
+            if not email:
+                msg = "Jira Cloud (API v3) requires an email for basic auth"
+                raise ValueError(msg)
+            auth = httpx.BasicAuth(username=email, password=api_token)
+        else:
+            headers["Authorization"] = f"Bearer {api_token}"
         self._http = httpx.AsyncClient(
             base_url=base_url,
-            auth=httpx.BasicAuth(username=email, password=api_token),
+            auth=auth,
+            headers=headers,
             timeout=httpx.Timeout(_TIMEOUT_SECONDS),
         )
 
@@ -126,6 +157,9 @@ class JiraClient:
             base_url=settings.jira_base_url,
             email=settings.jira_email,
             api_token=settings.jira_api_token.get_secret_value(),
+            api_version=_detect_api_version(
+                settings.jira_base_url, settings.jira_api_version
+            ),
         )
 
     async def __aenter__(self) -> Self:

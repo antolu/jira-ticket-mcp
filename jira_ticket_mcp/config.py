@@ -13,9 +13,18 @@ class Settings(pydantic_settings.BaseSettings):
         cli_parse_args=True,
     )
 
-    jira_base_url: str = pydantic.Field(description="Jira Cloud base URL")
-    jira_email: str = pydantic.Field(description="Jira account email")
-    jira_api_token: pydantic.SecretStr = pydantic.Field(description="Jira API token")
+    jira_base_url: str = pydantic.Field(description="Jira base URL")
+    jira_email: str | None = pydantic.Field(
+        default=None,
+        description="Jira account email (required for Jira Cloud / API v3 basic auth)",
+    )
+    jira_api_token: pydantic.SecretStr = pydantic.Field(
+        description="Jira API token (Cloud) or personal access token (Data Center)"
+    )
+    jira_api_version: str | None = pydantic.Field(
+        default=None,
+        description="Force Jira REST API version ('2' or '3'); autodetected from host",
+    )
     tools: str | None = pydantic.Field(
         default=None,
         description="Comma-separated allowlist of tools to register (default: all)",

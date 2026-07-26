@@ -7,7 +7,13 @@ import pytest
 
 from jira_ticket_mcp.config import Settings, load_settings
 
-_ENV_VARS = ("JIRA_BASE_URL", "JIRA_EMAIL", "JIRA_API_TOKEN", "TOOLS")
+_ENV_VARS = (
+    "JIRA_BASE_URL",
+    "JIRA_EMAIL",
+    "JIRA_API_TOKEN",
+    "JIRA_API_VERSION",
+    "TOOLS",
+)
 
 
 @pytest.fixture(autouse=True)
@@ -78,8 +84,23 @@ def test_missing_configuration_names_every_absent_setting() -> None:
 
     message = str(excinfo.value)
     assert "jira_base_url" in message
-    assert "jira_email" in message
     assert "jira_api_token" in message
+
+
+def test_email_is_optional(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("JIRA_BASE_URL", "https://dc.example.com")
+    monkeypatch.setenv("JIRA_API_TOKEN", "pat")
+
+    settings = load_settings()
+
+    assert settings.jira_email is None
+
+
+def test_accepts_api_version_override(monkeypatch: pytest.MonkeyPatch) -> None:
+    _set_env(monkeypatch)
+    monkeypatch.setenv("JIRA_API_VERSION", "2")
+
+    assert load_settings().jira_api_version == "2"
 
 
 def test_missing_configuration_names_only_the_absent_setting(
