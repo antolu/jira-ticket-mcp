@@ -1,0 +1,82 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Validate tag as PEP 440-compatible semver
+        run: |
+          RAW_TAG="${GITHUB_REF#refs/tags/}"
+          VERSION_TAG="${RAW_TAG#v}"
+          export VERSION_TAG
+          python - <<'PY'
+          from __future__ import annotations
+
+          import os
+          import sys
+
+          from packaging.version import InvalidVersion, Version
+
+          version_tag = os.environ["VERSION_TAG"]
+          try:
+              Version(version_tag)
+          except InvalidVersion:
+              print(f"Invalid PEP 440 version tag: {version_tag}")
+              print("Use tags like v1.2.3, v1.2.3rc1, or v1.2.3.dev1")
+              sys.exit(1)
+          PY
+
+      - name: Generate release notes grouped by commit type
+        run: |
+          CURRENT_TAG="${GITHUB_REF#refs/tags/}"
+          PREV_TAG=$(git tag --sort=-v:refname | awk -v cur="$CURRENT_TAG" 'found{print; exit} $0==cur{found=1}')
+          RANGE="${PREV_TAG:+${PREV_TAG}..}${CURRENT_TAG}"
+
+          declare -A TITLES=(
+            [feat]="Features" [fix]="Fixes" [perf]="Performance"
+            [refactor]="Refactoring" [docs]="Documentation" [test]="Tests"
+            [build]="Build" [ci]="CI" [chore]="Chores" [revert]="Reverts"
+          )
+          ORDER=(feat fix perf refactor docs test build ci chore revert)
+          TYPE_PATTERN=$(IFS='|'; echo "${ORDER[*]}")
+
+          NOTES_FILE=$(mktemp)
+          for type in "${ORDER[@]}"; do
+            entries=$(git log "$RANGE" --pretty=%s | grep -E "^${type}(\(.+\))?!?: " || true)
+            if [ -n "$entries" ]; then
+              {
+                echo "## ${TITLES[$type]}"
+                echo "$entries" | sed -E "s/^${type}(\(.+\))?!?: /* /"
+                echo
+              } >> "$NOTES_FILE"
+            fi
+          done
+
+          OTHER=$(git log "$RANGE" --pretty=%s | grep -vE "^(${TYPE_PATTERN})(\(.+\))?!?: " || true)
+          if [ -n "$OTHER" ]; then
+            {
+              echo "## Other"
+              echo "$OTHER" | sed -E 's/^/* /'
+            } >> "$NOTES_FILE"
+          fi
+
+          echo "NOTES_FILE=$NOTES_FILE" >> "$GITHUB_ENV"
+
+      - name: Create GitHub release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          CURRENT_TAG="${GITHUB_REF#refs/tags/}"
+          gh release create "$CURRENT_TAG" --title "$CURRENT_TAG" --notes-file "$NOTES_FILE"
