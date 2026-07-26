@@ -1,8 +1,10 @@
 [project]
 dependencies = [
   "httpx>=0.28.1",
+  "jira2markdown>=1.1.1",
   "marklas>=0.8.6",
   "mcp>=1.28.1",
+  "mistune>=3.0.0",
   "pyadf>=0.5.2",
   "pydantic>=2.13.4",
   "pydantic-settings>=2.14.2",
@@ -162,7 +164,7 @@ disallow_any_generics = true
 
 
 [[tool.mypy.overrides]]
-module = ["pyadf.*"]
+module = ["pyadf.*", "mistune.*", "jira2markdown.*"]
 ignore_missing_imports = true
 
 # for pyright LSP
