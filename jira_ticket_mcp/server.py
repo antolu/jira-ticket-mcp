@@ -122,6 +122,7 @@ def build_server(
     ) -> Issue:
         """Create an issue. Set parent_key to make a subtask or attach to an epic."""
         fields = build_fields(
+            encode_description=client.encode_rich_text,
             project=project,
             issue_type=issue_type,
             summary=summary,
@@ -148,6 +149,7 @@ def build_server(
         """
         field_sets = [
             build_fields(
+                encode_description=client.encode_rich_text,
                 project=project,
                 issue_type=item.get("issue_type", IssueType.TASK),
                 summary=item.get("summary"),
@@ -180,6 +182,7 @@ def build_server(
         Leave description unset unless you intend to rewrite it.
         """
         fields = build_fields(
+            encode_description=client.encode_rich_text,
             issue_type=issue_type,
             summary=summary,
             description=description,

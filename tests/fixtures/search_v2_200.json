@@ -1,0 +1,21 @@
+{
+  "startAt": 0,
+  "maxResults": 50,
+  "total": 5,
+  "issues": [
+    {
+      "id": "1001",
+      "key": "OPS-1",
+      "fields": {
+        "summary": "First"
+      }
+    },
+    {
+      "id": "1002",
+      "key": "OPS-2",
+      "fields": {
+        "summary": "Second"
+      }
+    }
+  ]
+}

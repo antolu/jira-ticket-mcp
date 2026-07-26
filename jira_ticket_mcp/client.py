@@ -7,6 +7,7 @@ from typing import Self
 import httpx
 import pydantic
 
+from jira_ticket_mcp import wiki
 from jira_ticket_mcp.adf import AdfDocument
 from jira_ticket_mcp.config import Settings
 from jira_ticket_mcp.errors import JiraAPIError
@@ -125,6 +126,23 @@ def _batch_error(item: pydantic.JsonValue, *, fallback: int) -> BatchItemResult:
     return BatchItemResult(index=index, error=text)
 
 
+def _search_page_from_offset(body: pydantic.JsonValue) -> SearchPage:
+    if not isinstance(body, dict):
+        return SearchPage()
+    raw_issues = body.get("issues")
+    issues = (
+        [Issue.model_validate(item) for item in raw_issues]
+        if isinstance(raw_issues, list)
+        else []
+    )
+    raw_start = body.get("startAt")
+    total = body.get("total")
+    next_start = (raw_start if isinstance(raw_start, int) else 0) + len(issues)
+    is_last = not isinstance(total, int) or next_start >= total
+    token = None if is_last else str(next_start)
+    return SearchPage(issues=issues, next_page_token=token, is_last=is_last)
+
+
 class JiraClient:
     def __init__(
         self,
@@ -162,6 +180,14 @@ class JiraClient:
             ),
         )
 
+    def _api(self, suffix: str) -> str:
+        return f"/rest/api/{self._api_version}{suffix}"
+
+    def encode_rich_text(self, markdown: str) -> pydantic.JsonValue:
+        if self._api_version == "3":
+            return AdfDocument.from_markdown(markdown).model_dump()
+        return wiki.markdown_to_wiki(markdown)
+
     async def __aenter__(self) -> Self:
         return self
 
@@ -195,13 +221,13 @@ class JiraClient:
         return response
 
     async def get_myself(self) -> Myself:
-        response = await self._request(HttpMethod.GET, "/rest/api/3/myself")
+        response = await self._request(HttpMethod.GET, self._api("/myself"))
         return Myself.model_validate(response.json())
 
     async def get_issue(self, key: str, *, fields: list[str] | None = None) -> Issue:
         params = {"fields": ",".join(fields)} if fields else None
         response = await self._request(
-            HttpMethod.GET, f"/rest/api/3/issue/{key}", params=params
+            HttpMethod.GET, self._api(f"/issue/{key}"), params=params
         )
         return Issue.model_validate(response.json())
 
@@ -213,6 +239,13 @@ class JiraClient:
         next_page_token: str | None = None,
         fields: list[str] | None = None,
     ) -> SearchPage:
+        if self._api_version != "3":
+            return await self._search_v2(
+                jql,
+                max_results=max_results,
+                next_page_token=next_page_token,
+                fields=fields,
+            )
         payload: dict[str, pydantic.JsonValue] = {
             "jql": jql,
             "maxResults": max_results,
@@ -222,13 +255,34 @@ class JiraClient:
         if fields is not None:
             payload["fields"] = list(fields)
         response = await self._request(
-            HttpMethod.POST, "/rest/api/3/search/jql", json_body=payload
+            HttpMethod.POST, self._api("/search/jql"), json_body=payload
         )
         return SearchPage.model_validate(response.json())
 
+    async def _search_v2(
+        self,
+        jql: str,
+        *,
+        max_results: int,
+        next_page_token: str | None,
+        fields: list[str] | None,
+    ) -> SearchPage:
+        start_at = int(next_page_token) if next_page_token else 0
+        payload: dict[str, pydantic.JsonValue] = {
+            "jql": jql,
+            "startAt": start_at,
+            "maxResults": max_results,
+        }
+        if fields is not None:
+            payload["fields"] = list(fields)
+        response = await self._request(
+            HttpMethod.POST, self._api("/search"), json_body=payload
+        )
+        return _search_page_from_offset(response.json())
+
     async def create_issue(self, fields: dict[str, pydantic.JsonValue]) -> Issue:
         response = await self._request(
-            HttpMethod.POST, "/rest/api/3/issue", json_body={"fields": fields}
+            HttpMethod.POST, self._api("/issue"), json_body={"fields": fields}
         )
         return Issue.model_validate(response.json())
 
@@ -239,28 +293,28 @@ class JiraClient:
             "issueUpdates": [{"fields": fields} for fields in field_sets]
         }
         response = await self._request(
-            HttpMethod.POST, "/rest/api/3/issue/bulk", json_body=payload
+            HttpMethod.POST, self._api("/issue/bulk"), json_body=payload
         )
         return _batch_result(response.json(), total=len(field_sets))
 
     async def edit_issue(self, key: str, fields: dict[str, pydantic.JsonValue]) -> None:
         await self._request(
-            HttpMethod.PUT, f"/rest/api/3/issue/{key}", json_body={"fields": fields}
+            HttpMethod.PUT, self._api(f"/issue/{key}"), json_body={"fields": fields}
         )
 
     async def delete_issue(self, key: str) -> None:
-        await self._request(HttpMethod.DELETE, f"/rest/api/3/issue/{key}")
+        await self._request(HttpMethod.DELETE, self._api(f"/issue/{key}"))
 
     async def get_transitions(self, key: str) -> TransitionList:
         response = await self._request(
-            HttpMethod.GET, f"/rest/api/3/issue/{key}/transitions"
+            HttpMethod.GET, self._api(f"/issue/{key}/transitions")
         )
         return TransitionList.model_validate(response.json())
 
     async def transition_issue(self, key: str, transition_id: str) -> None:
         await self._request(
             HttpMethod.POST,
-            f"/rest/api/3/issue/{key}/transitions",
+            self._api(f"/issue/{key}/transitions"),
             json_body={"transition": {"id": transition_id}},
         )
 
@@ -272,34 +326,41 @@ class JiraClient:
             "inwardIssue": {"key": inward_key},
             "outwardIssue": {"key": outward_key},
         }
-        await self._request(HttpMethod.POST, "/rest/api/3/issueLink", json_body=payload)
+        await self._request(HttpMethod.POST, self._api("/issueLink"), json_body=payload)
 
     async def add_comment(self, key: str, markdown: str) -> Comment:
-        body = AdfDocument.from_markdown(markdown).model_dump()
+        body = self.encode_rich_text(markdown)
         response = await self._request(
             HttpMethod.POST,
-            f"/rest/api/3/issue/{key}/comment",
+            self._api(f"/issue/{key}/comment"),
             json_body={"body": body},
         )
         return Comment.model_validate(response.json())
 
     async def get_comments(self, key: str) -> CommentPage:
         response = await self._request(
-            HttpMethod.GET, f"/rest/api/3/issue/{key}/comment"
+            HttpMethod.GET, self._api(f"/issue/{key}/comment")
         )
         return CommentPage.model_validate(response.json())
 
     async def delete_comment(self, key: str, comment_id: str) -> None:
         await self._request(
-            HttpMethod.DELETE, f"/rest/api/3/issue/{key}/comment/{comment_id}"
+            HttpMethod.DELETE, self._api(f"/issue/{key}/comment/{comment_id}")
         )
 
     async def aclose(self) -> None:
         await self._http.aclose()
 
 
+def _adf_description(markdown: str) -> pydantic.JsonValue:
+    return AdfDocument.from_markdown(markdown).model_dump()
+
+
 def build_fields(  # ruff: ignore[too-many-arguments]
     *,
+    encode_description: collections.abc.Callable[
+        [str], pydantic.JsonValue
+    ] = _adf_description,
     project: str | None = None,
     issue_type: IssueType | str | None = None,
     summary: str | None = None,
@@ -317,7 +378,7 @@ def build_fields(  # ruff: ignore[too-many-arguments]
     if summary is not None:
         fields["summary"] = summary
     if description is not None:
-        fields["description"] = AdfDocument.from_markdown(description).model_dump()
+        fields["description"] = encode_description(description)
     if assignee_account_id is not None:
         fields["assignee"] = {"accountId": assignee_account_id}
     if priority is not None:

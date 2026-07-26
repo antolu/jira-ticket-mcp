@@ -1,0 +1,9 @@
+{
+  "id": "1001",
+  "key": "DC-7",
+  "self": "https://jira.example.com/rest/api/2/issue/1001",
+  "fields": {
+    "summary": "Data center issue",
+    "description": "h2. Heading\n\n*strong* text"
+  }
+}
