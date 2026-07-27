@@ -79,7 +79,7 @@ def test_cli_supplies_settings_absent_from_environment(
 
 
 def test_missing_configuration_names_every_absent_setting() -> None:
-    with pytest.raises(pydantic.ValidationError) as excinfo:
+    with pytest.raises(SystemExit) as excinfo:
         load_settings()
 
     message = str(excinfo.value)
@@ -109,11 +109,13 @@ def test_missing_configuration_names_only_the_absent_setting(
     monkeypatch.setenv("JIRA_BASE_URL", "https://env.atlassian.net")
     monkeypatch.setenv("JIRA_EMAIL", "env@example.com")
 
-    with pytest.raises(pydantic.ValidationError) as excinfo:
+    with pytest.raises(SystemExit) as excinfo:
         load_settings()
 
-    missing = [error["loc"] for error in excinfo.value.errors()]
-    assert missing == [("jira_api_token",)]
+    assert str(excinfo.value) == (
+        "Invalid settings:\n"
+        "jira_api_token: Field required (set --jira-api-token or JIRA_API_TOKEN)"
+    )
 
 
 def test_token_is_not_exposed_by_repr(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -132,7 +134,7 @@ def test_blank_required_values_are_rejected(
     _set_env(monkeypatch)
     monkeypatch.setenv("JIRA_EMAIL", value)
 
-    with pytest.raises(pydantic.ValidationError, match="must not be empty"):
+    with pytest.raises(SystemExit, match="must not be empty"):
         load_settings()
 
 
@@ -140,7 +142,7 @@ def test_base_url_requires_https(monkeypatch: pytest.MonkeyPatch) -> None:
     _set_env(monkeypatch)
     monkeypatch.setenv("JIRA_BASE_URL", "http://env.atlassian.net")
 
-    with pytest.raises(pydantic.ValidationError, match="https://"):
+    with pytest.raises(SystemExit, match="https://"):
         load_settings()
 
 
