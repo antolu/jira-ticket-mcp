@@ -27,6 +27,11 @@ _PARENT_HINT = (
     "use an instance-specific Epic Link custom field instead."
 )
 
+# /rest/api/3/search/jql (used on Cloud) returns only `id` per issue unless
+# `fields` is explicitly requested, unlike the classic /search endpoint used
+# on api_version=2. Request exactly what IssueSummary.from_issue consumes.
+_SEARCH_FIELDS = ["summary", "status", "assignee", "priority", "issuetype"]
+
 
 class UnknownToolError(ValueError):
     pass
@@ -90,7 +95,10 @@ def build_server(
     ) -> SearchResult:
         """Search issues by JQL, returning a trimmed projection of each issue."""
         page = await client.search_jql(
-            jql, max_results=max_results, next_page_token=next_page_token
+            jql,
+            max_results=max_results,
+            next_page_token=next_page_token,
+            fields=_SEARCH_FIELDS,
         )
         return SearchResult(
             issues=[IssueSummary.from_issue(issue) for issue in page.issues],

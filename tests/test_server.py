@@ -87,7 +87,7 @@ async def test_default_registers_every_tool(jira_client: JiraClient) -> None:
 async def test_search_issues_returns_trimmed_projection(
     jira_client: JiraClient, base_url: str, load_fixture: LoadFixture
 ) -> None:
-    respx.post(f"{base_url}/rest/api/3/search/jql").mock(
+    route = respx.post(f"{base_url}/rest/api/3/search/jql").mock(
         return_value=_json_response(load_fixture("search_jql_200.json"))
     )
     server = build_server(jira_client, resolve_tools(None))
@@ -96,6 +96,8 @@ async def test_search_issues_returns_trimmed_projection(
         server, "search_issues", {"jql": "project = OPS"}, SearchResult
     )
 
+    body = json.loads(route.calls.last.request.content)
+    assert body["fields"] == ["summary", "status", "assignee", "priority", "issuetype"]
     assert [issue.key for issue in payload.issues] == ["OPS-3", "OPS-1", "OPS-2"]
     assert payload.issues[0].summary == "zeta task"
     assert payload.issues[0].issue_type == "Task"
