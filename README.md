@@ -13,9 +13,10 @@ equivalent CLI arguments (CLI wins):
 
 | Environment variable | CLI argument | Description |
 |----------------------|--------------|-------------|
-| `JIRA_BASE_URL` | `--jira-base-url` | Your Jira Cloud site, e.g. `https://example.atlassian.net` |
-| `JIRA_EMAIL` | `--jira-email` | The account email the API token belongs to |
-| `JIRA_API_TOKEN` | `--jira-api-token` | An API token from https://id.atlassian.com/manage-profile/security/api-tokens |
+| `JIRA_BASE_URL` | `--jira-base-url` | Your Jira site, e.g. `https://example.atlassian.net` or `https://jira.example.com` |
+| `JIRA_EMAIL` | `--jira-email` | The account email the API token belongs to (Cloud only) |
+| `JIRA_API_TOKEN` | `--jira-api-token` | A Cloud API token, or a Data Center/Server personal access token |
+| `JIRA_API_VERSION` | `--jira-api-version` | Force REST API `2` or `3`; autodetected from the host if unset |
 
 ## Running
 
@@ -74,7 +75,10 @@ Unlisted tools are never registered, so they cost the caller no context.
 
 ## Notes
 
-- Jira **Cloud** only (REST API v3). Data Center and Server are not supported.
+- Jira Cloud (REST API v3, email + API token) and Data Center/Server (REST API v2,
+  personal access token) are both supported. The API version is autodetected from
+  the host (`*.atlassian.net` → v3, anything else → v2); override with
+  `JIRA_API_VERSION`/`--jira-api-version` if autodetection picks the wrong one.
 - Epics are linked through the `parent` field, which works on team-managed
   projects. Company-managed projects use an instance-specific Epic Link custom
   field; on those, setting a parent fails with an error saying so.
