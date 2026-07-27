@@ -53,4 +53,12 @@ _SCHEME_MESSAGE = f"must use the {_REQUIRED_SCHEME} scheme"
 
 
 def load_settings() -> Settings:
-    return Settings()
+    try:
+        return Settings()
+    except pydantic.ValidationError as exc:
+        lines = [
+            f"{err['loc'][0]}: {err['msg']} "
+            f"(set --{str(err['loc'][0]).replace('_', '-')} or {str(err['loc'][0]).upper()})"
+            for err in exc.errors()
+        ]
+        raise SystemExit("Invalid settings:\n" + "\n".join(lines)) from None
