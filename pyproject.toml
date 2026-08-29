@@ -42,7 +42,7 @@ changelog = "https://github.com/antolu/jira-ticket-mcp/releases"
 [project.optional-dependencies]
 test = ["pytest", "pytest-asyncio>=1.4.0", "pytest-cov", "respx>=0.23.1"]
 doc = ["sphinx", "myst-parser", "sphinx-copybutton"]
-dev = ["mypy==2.3.0", "pre-commit==4.6.1", "ruff==0.16.0"]
+dev = ["mypy==2.3.0", "pre-commit==4.6.1", "ruff==0.16.4"]
 
 [build-system]
 requires = ["setuptools >= 61", "setuptools-scm[toml] ~= 10.0", "wheel"]
